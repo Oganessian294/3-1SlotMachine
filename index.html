@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3x1 Slot Machine</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            overflow: hidden;
+            color: #111111;
+        }
+
+        #confettiCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none !important;
+            z-index: 500;
+        }
+
+        .container {
+            background: #ffffff;
+            width: 100%;
+            max-width: 680px;
+            padding: 30px;
+            border-radius: 24px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #111111;
+            z-index: 10;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(6px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 99999 !important;
+            pointer-events: auto !important;
+        }
+
+        .modal {
+            background: #ffffff;
+            padding: 36px 28px 32px 28px;
+            border-radius: 24px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+            max-width: 500px;
+            width: 92%;
+            color: #111111;
+            border: 2px solid #111111;
+            position: relative;
+            z-index: 100000 !important;
+            pointer-events: auto !important;
+        }
+
+        .modal h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 24px;
+            font-weight: 800;
+            color: #111111;
+        }
+
+        .close-btn-left {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: 2px solid #111111;
+            background: #ffffff;
+            color: #111111;
+            font-size: 22px;
+            font-weight: 800;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            outline: none;
+            line-height: 1;
+            z-index: 100002 !important;
+        }
+
+        .close-btn-left:hover {
+            background: #f0f0f0;
+            transform: scale(1.08);
+        }
+
+        .help-text {
+            text-align: left;
+            font-size: 15px;
+            line-height: 1.8;
+            color: #111111;
+            font-weight: 600;
+            white-space: pre-line;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid #111111;
+            word-break: break-word;
+        }
+
+        .final-score-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .final-score-box, .final-rank-box {
+            background: #f8f9fa;
+            border: 1px solid #111111;
+            border-radius: 16px;
+            padding: 14px 16px;
+            flex: 1;
+        }
+
+        .final-score-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #666666;
+            margin-bottom: 4px;
+        }
+
+        .final-score-value {
+            font-size: 26px;
+            font-weight: 900;
+            color: #111111;
+        }
+
+        .final-rank-value {
+            font-size: 26px;
+            font-weight: 900;
+            color: #d97706;
+        }
+
+        .leaderboard-box {
+            background: #f8f9fa;
+            border: 1px solid #111111;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 22px;
+        }
+
+        .leaderboard-title {
+            font-size: 13px;
+            font-weight: 800;
+            color: #111111;
+            margin-bottom: 10px;
+            text-align: left;
+        }
+
+        .leaderboard-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #ffffff;
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px solid #111111;
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .leaderboard-item.is-current {
+            border: 2px solid #f59e0b;
+            background: #fffdf5;
+        }
+
+        .rank-medal {
+            font-size: 18px;
+            margin-right: 8px;
+        }
+
+        .mode-btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .primary-btn {
+            padding: 16px 28px;
+            font-size: 19px;
+            font-weight: 800;
+            border: 2px solid #111111;
+            border-radius: 14px;
+            background: #111111;
+            color: #ffffff;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            width: 100%;
+            position: relative;
+            z-index: 100001 !important;
+            pointer-events: auto !important;
+        }
+
+        .primary-btn:hover {
+            background: #333333;
+            border-color: #333333;
+            transform: translateY(-2px);
+        }
+
+        .header-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 25px;
+            color: #111111;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #111111;
+        }
+
+        .balls-center {
+            flex: 1;
+            text-align: left;
+        }
+
+        .mode-right {
+            text-align: right;
+            color: #666666;
+            font-size: 16px;
+        }
+
+        .main-content {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .score-box {
+            width: 180px;
+            height: 150px;
+            border: 2px solid #111111;
+            border-radius: 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            background: #fafafa;
+            color: #111111;
+        }
+
+        .score-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #666666;
+            margin-bottom: 6px;
+        }
+
+        .score-value {
+            font-size: 28px;
+            font-weight: 900;
+            color: #111111;
+        }
+
+        .slot-display {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .reel-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .reel {
+            width: 100%;
+            height: 150px;
+            border: 2px solid #111111;
+            border-radius: 18px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 80px;
+            font-weight: 900;
+            background: #ffffff;
+            color: #111111;
+        }
+
+        .jolt {
+            animation: joltAnim 0.15s ease-out;
+        }
+
+        @keyframes joltAnim {
+            0% { transform: translateY(-10px); }
+            50% { transform: translateY(5px); }
+            100% { transform: translateY(0); }
+        }
+
+        .stop-btn {
+            margin-top: 16px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 2px solid #111111;
+            background: #ffffff;
+            cursor: pointer;
+            outline: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.15s ease;
+        }
+
+        .stop-btn::after {
+            content: '';
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #111111;
+            display: block;
+        }
+
+        .stop-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            background: #f0f0f0;
+        }
+
+        .stop-btn:disabled {
+            border-color: #cccccc;
+            background: #f5f5f5;
+            cursor: not-allowed;
+        }
+
+        .stop-btn:disabled::after {
+            background: #cccccc;
+        }
+
+        .controls {
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .action-btn {
+            padding: 16px 44px;
+            font-size: 22px;
+            font-weight: 800;
+            border: 2px solid #111111;
+            border-radius: 14px;
+            background: #111111;
+            color: #ffffff;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .action-btn:hover:not(:disabled) {
+            background: #333333;
+            transform: translateY(-2px);
+        }
+
+        .action-btn:disabled {
+            background: #e0e0e0;
+            border-color: #e0e0e0;
+            color: #a0a0a0;
+            cursor: not-allowed;
+        }
+
+        .quit-btn {
+            padding: 16px 22px;
+            font-size: 16px;
+            font-weight: 700;
+            border: 2px solid #111111;
+            border-radius: 14px;
+            background: #ffffff;
+            color: #111111;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .quit-btn:hover {
+            background: #f5f5f5;
+            color: #111111;
+            border-color: #111111;
+        }
+
+        .help-btn {
+            padding: 16px;
+            width: 56px;
+            height: 56px;
+            font-size: 20px;
+            font-weight: 800;
+            border: 2px solid #111111;
+            border-radius: 14px;
+            background: #ffffff;
+            color: #111111;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .help-btn:hover {
+            background: #f5f5f5;
+            border-color: #111111;
+            transform: translateY(-2px);
+        }
+
+        .win-banner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 80000 !important;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
+        .win-banner-overlay.active {
+            opacity: 1;
+        }
+
+        .win-banner-text {
+            font-size: 72px;
+            font-weight: 900;
+            white-space: nowrap;
+            text-align: center;
+            transform: scale(0.4);
+            transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            letter-spacing: 2px;
+        }
+
+        .win-banner-overlay.active .win-banner-text {
+            transform: scale(1);
+        }
+
+        .win-banner-text.gold-jackpot {
+            color: #ffd700;
+            text-shadow: 
+                0 0 12px #ffae00,
+                0 0 25px #ff8800,
+                -2px -2px 0 #111111,
+                 2px -2px 0 #111111,
+                -2px  2px 0 #111111,
+                 2px  2px 0 #111111,
+                 0px  6px 15px rgba(0, 0, 0, 0.8);
+            animation: goldFloatPulse 0.75s infinite alternate ease-in-out;
+        }
+
+        .win-banner-text.standard-win {
+            color: #2563eb;
+            text-shadow: 
+                -2px -2px 0 #ffffff,
+                 2px -2px 0 #ffffff,
+                -2px  2px 0 #ffffff,
+                 2px  2px 0 #ffffff,
+                 0px  6px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes goldFloatPulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.08); }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="confettiCanvas"></canvas>
+
+    <div class="win-banner-overlay" id="winBannerOverlay">
+        <div class="win-banner-text" id="winBannerText">777 大当たり！！！</div>
+    </div>
+
+    <!-- Mode Select Modal -->
+    <div class="modal-overlay" id="modeModal">
+        <div class="modal" style="position: relative;">
+            <button type="button" class="close-btn-left" id="modeHelpBtn" aria-label="説明" style="left: auto; right: 16px;">？</button>
+            <h2>モードを選択してください</h2>
+            <div class="mode-btn-group">
+                <button type="button" class="primary-btn" id="mode150Btn">×150 モード (50回)</button>
+                <button type="button" class="primary-btn" id="mode500Btn">×500 モード (15回)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Q-Key Average Score Modal (Hidden by default) -->
+    <div class="modal-overlay" id="avgModal" style="display: none;">
+        <div class="modal">
+            <button type="button" class="close-btn-left" id="closeAvgBtn" aria-label="閉じる">×</button>
+            <h2>平均スコア</h2>
+            <div class="help-text" id="avgScoreText">保存されたスコアはありません。</div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="modal-overlay" id="helpModal" style="display: none;">
+        <div class="modal">
+            <button type="button" class="close-btn-left" id="closeHelpBtn" aria-label="閉じる">×</button>
+            <h2>遊びかた</h2>
+            <div class="help-text">モード選択によりスコアの倍率が変わります。
+スタートボタンを押すかエンターキーを押すとゲームが始まります。
+ロールが回りだしたら同じ数字に揃うようにボタンを押してください。
+ボタンを押すかエンターキーを押すかで止まります。揃えた場合、
+777だと大当たり、それ以外だと当たりになりスコアが入ります。
+やめるボタンを押すとモード選択画面に戻ります。
+回数を使い切ると画面が変わり、最終スコア、ランキングが表示されます。</div>
+        </div>
+    </div>
+
+    <!-- Game Over / Ranking Modal -->
+    <div class="modal-overlay" id="gameOverModal" style="display: none;">
+        <div class="modal">
+            <h2>ゲーム終了</h2>
+            <div class="final-score-container">
+                <div class="final-score-box">
+                    <div class="final-score-label">最終スコア</div>
+                    <div class="final-score-value" id="finalScoreVal">0</div>
+                </div>
+                <div class="final-rank-box">
+                    <div class="final-score-label">ランキング</div>
+                    <div class="final-rank-value" id="finalRankVal">第1位</div>
+                </div>
+            </div>
+
+            <div class="leaderboard-box">
+                <div class="leaderboard-title">🏆 歴代TOP 3 スコア</div>
+                <div class="leaderboard-list" id="top3List"></div>
+            </div>
+
+            <button type="button" class="primary-btn" id="finishBtn">おわり</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header-info">
+            <div class="balls-center" id="ballsDisplay">のこり 7,500玉 (残り 50回)</div>
+            <div class="mode-right" id="modeDisplay">モード ×150</div>
+        </div>
+
+        <div class="main-content">
+            <div class="score-box">
+                <div class="score-title">スコア</div>
+                <div class="score-value" id="scoreDisplay">0</div>
+            </div>
+
+            <div class="slot-display">
+                <div class="reel-container">
+                    <div class="reel" id="reel0">1</div>
+                    <button type="button" class="stop-btn" id="stopBtn0" disabled></button>
+                </div>
+                <div class="reel-container">
+                    <div class="reel" id="reel1">3</div>
+                    <button type="button" class="stop-btn" id="stopBtn1" disabled></button>
+                </div>
+                <div class="reel-container">
+                    <div class="reel" id="reel2">9</div>
+                    <button type="button" class="stop-btn" id="stopBtn2" disabled></button>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button type="button" class="action-btn" id="startBtn">スタート</button>
+            <button type="button" class="quit-btn" id="quitBtn">やめる</button>
+            <button type="button" class="help-btn" id="helpBtn" aria-label="説明">？</button>
+        </div>
+    </div>
+
+    <script>
+        let balls = 7500;
+        let score = 0;
+        let mode = 150;
+        let totalGames = 50;
+        let targetWins = 7;
+        let currentGameCount = 0;
+
+        let guaranteedGames = [];
+        let temparGames = [];
+        let actualWinsCount = 0;
+
+        let isSpinning = [false, false, false];
+        let reelValues = [1, 3, 9];
+        let targetReelValues = [1, 3, 9];
+        let spinTimeouts = [null, null, null];
+        let stopRequested = [false, false, false];
+        let stoppedCount = 0;
+
+        const RANKING_KEY_150 = "slot_machine_scores_mode_150";
+        const RANKING_KEY_500 = "slot_machine_scores_mode_500";
+        const GLOBAL_RANKING_KEY = "slot_machine_leaderboard_global_unified";
+
+        function getUniqueTriple() {
+            const arr = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr.slice(0, 3);
+        }
+
+        function setUniqueStartingReels() {
+            const unique = getUniqueTriple();
+            for (let i = 0; i < 3; i++) {
+                reelValues[i] = unique[i];
+                document.getElementById(`reel${i}`).innerText = reelValues[i];
+            }
+        }
+
+        function selectMode(selectedMode) {
+            mode = selectedMode;
+            if (mode === 150) {
+                totalGames = 50;
+                targetWins = 7;
+            } else {
+                totalGames = 15;
+                targetWins = 2;
+            }
+
+            document.getElementById('modeDisplay').innerText = `モード ×${mode}`;
+            document.getElementById('modeModal').style.display = 'none';
+
+            guaranteedGames = generateGuaranteedGames(totalGames, targetWins);
+            temparGames = generateTemparGames(totalGames, guaranteedGames, mode === 150 ? 12 : 4);
+            resetGameState();
+        }
+
+        function generateGuaranteedGames(total, wins) {
+            let indices = [];
+            for (let i = 0; i < total; i++) indices.push(i);
+            for (let i = indices.length - 1; i > 0; i--) {
+                let j = Math.floor(Math.random() * (i + 1));
+                [indices[i], indices[j]] = [indices[j], indices[i]];
+            }
+            return indices.slice(0, wins).sort((a, b) => a - b);
+        }
+
+        function generateTemparGames(total, winList, exactTemparCount) {
+            let available = [];
+            for (let i = 0; i < total; i++) {
+                if (!winList.includes(i)) available.push(i);
+            }
+            for (let i = available.length - 1; i > 0; i--) {
+                let j = Math.floor(Math.random() * (i + 1));
+                [available[i], available[j]] = [available[j], available[i]];
+            }
+            let needed = exactTemparCount - winList.length;
+            if (needed < 0) needed = 0;
+            let temparCount = Math.min(needed, available.length);
+            return available.slice(0, temparCount).sort((a, b) => a - b);
+        }
+
+        function resetGameState() {
+            balls = 7500;
+            score = 0;
+            currentGameCount = 0;
+            actualWinsCount = 0;
+
+            for (let i = 0; i < 3; i++) {
+                if (spinTimeouts[i]) clearTimeout(spinTimeouts[i]);
+                isSpinning[i] = false;
+                stopRequested[i] = false;
+                document.getElementById(`stopBtn${i}`).disabled = true;
+            }
+
+            document.getElementById('startBtn').disabled = false;
+            setUniqueStartingReels();
+            updateDisplays();
+        }
+
+        function quitGame() {
+            resetGameState();
+            document.getElementById('modeModal').style.display = 'flex';
+        }
+
+        function updateDisplays() {
+            const spinsLeft = totalGames - currentGameCount;
+            document.getElementById('ballsDisplay').innerText = `のこり ${balls.toLocaleString()}玉 (残り ${spinsLeft}回)`;
+            document.getElementById('scoreDisplay').innerText = score.toLocaleString();
+        }
+
+        function startSpin() {
+            if (document.getElementById('startBtn').disabled) return;
+            if (currentGameCount >= totalGames) {
+                showGameOver();
+                return;
+            }
+
+            balls -= mode;
+            currentGameCount++;
+            const gameIndex = currentGameCount - 1;
+            const uniqueStarts = getUniqueTriple();
+            document.getElementById('startBtn').disabled = true;
+
+            stoppedCount = 0;
+
+            const isWin = guaranteedGames.includes(gameIndex);
+            const isTempar = temparGames.includes(gameIndex);
+
+            let r0, r1, r2;
+
+            if (isWin) {
+                let sym = (Math.random() < 0.25) ? 7 : (Math.floor(Math.random() * 9) + 1);
+                r0 = sym;
+                r1 = sym;
+                r2 = sym;
+            } else if (isTempar) {
+                let sym = Math.floor(Math.random() * 9) + 1;
+                r0 = sym;
+                r1 = sym;
+                do {
+                    r2 = Math.floor(Math.random() * 9) + 1;
+                } while (r2 === sym);
+            } else {
+                r0 = Math.floor(Math.random() * 9) + 1;
+                do {
+                    r1 = Math.floor(Math.random() * 9) + 1;
+                } while (r1 === r0);
+                do {
+                    r2 = Math.floor(Math.random() * 9) + 1;
+                } while (r2 === r0 || r2 === r1);
+            }
+
+            targetReelValues = [r0, r1, r2];
+
+            for (let i = 0; i < 3; i++) {
+                isSpinning[i] = true;
+                stopRequested[i] = false;
+                document.getElementById(`stopBtn${i}`).disabled = false;
+
+                reelValues[i] = uniqueStarts[i];
+                document.getElementById(`reel${i}`).innerText = reelValues[i];
+
+                startFastSpin(i);
+            }
+
+            updateDisplays();
+        }
+
+        function startFastSpin(index) {
+            const reelEl = document.getElementById(`reel${index}`);
+            function step() {
+                if (!isSpinning[index]) return;
+                reelValues[index] = (reelValues[index] % 9) + 1;
+                reelEl.innerText = reelValues[index];
+                spinTimeouts[index] = setTimeout(step, 71);
+            }
+            step();
+        }
+
+        function requestStop(index) {
+            if (!isSpinning[index] || stopRequested[index]) return;
+
+            stopRequested[index] = true;
+            document.getElementById(`stopBtn${index}`).disabled = true;
+
+            if (spinTimeouts[index]) clearTimeout(spinTimeouts[index]);
+
+            const reelEl = document.getElementById(`reel${index}`);
+            const target = targetReelValues[index];
+
+            const steps = [
+                { delay: 25, val: (reelValues[index] % 9) + 1 },
+                { delay: 55, val: ( (reelValues[index] + 1) % 9 ) + 1 },
+                { delay: 85, val: ( (reelValues[index] + 2) % 9 ) + 1 },
+                { delay: 115, val: target }
+            ];
+
+            steps.forEach(stepInfo => {
+                setTimeout(() => {
+                    if (!isSpinning[index]) return;
+                    reelValues[index] = stepInfo.val;
+                    reelEl.innerText = reelValues[index];
+
+                    if (stepInfo.val === target) {
+                        stopReel(index);
+                    }
+                }, stepInfo.delay);
+            });
+        }
+
+        function stopReel(index) {
+            if (!isSpinning[index]) return;
+
+            if (spinTimeouts[index]) {
+                clearTimeout(spinTimeouts[index]);
+                spinTimeouts[index] = null;
+            }
+            isSpinning[index] = false;
+
+            const reelEl = document.getElementById(`reel${index}`);
+            reelEl.innerText = targetReelValues[index];
+            reelValues[index] = targetReelValues[index];
+
+            reelEl.classList.remove('jolt');
+            void reelEl.offsetWidth;
+            reelEl.classList.add('jolt');
+
+            stoppedCount++;
+
+            if (!isSpinning[0] && !isSpinning[1] && !isSpinning[2]) {
+                checkResult();
+            }
+        }
+
+        function checkResult() {
+            let [v1, v2, v3] = reelValues;
+
+            if (v1 === v2 && v2 === v3) {
+                actualWinsCount++;
+                const isBigWin = (v1 === 7);
+                let addedScore = 0;
+                if (mode === 150) {
+                    addedScore = isBigWin ? 8000 : 2000;
+                } else {
+                    addedScore = isBigWin ? (mode * 50) : (mode * 10);
+                }
+                score += addedScore;
+                updateDisplays();
+                playWinAnimation(isBigWin);
+            }
+
+            if (currentGameCount >= totalGames) {
+                setTimeout(() => {
+                    showGameOver();
+                }, 1200);
+            } else {
+                document.getElementById('startBtn').disabled = false;
+            }
+        }
+
+        function saveAndGetRankings(finalScore) {
+            let rankings = [];
+            try {
+                const stored = localStorage.getItem(GLOBAL_RANKING_KEY);
+                if (stored) rankings = JSON.parse(stored);
+            } catch (e) {
+                rankings = [];
+            }
+
+            rankings.push(finalScore);
+            rankings.sort((a, b) => b - a);
+
+            if (rankings.length > 1000) {
+                rankings = rankings.slice(0, 1000);
+            }
+
+            try {
+                localStorage.setItem(GLOBAL_RANKING_KEY, JSON.stringify(rankings));
+            } catch (e) {}
+
+            let rank = rankings.indexOf(finalScore) + 1;
+            if (rank === 0 || rank > 1000) rank = 1000;
+
+            return { playerRank: rank, top3: rankings.slice(0, 3) };
+        }
+
+        function showGameOver() {
+            const { playerRank, top3 } = saveAndGetRankings(score);
+            document.getElementById('finalScoreVal').innerText = score.toLocaleString();
+            document.getElementById('finalRankVal').innerText = `第${playerRank}位`;
+
+            const medals = ['🥇', '🥈', '🥉'];
+            const top3Container = document.getElementById('top3List');
+            top3Container.innerHTML = '';
+
+            for (let i = 0; i < 3; i++) {
+                const scoreVal = top3[i] !== undefined ? `${top3[i].toLocaleString()} pt` : '---';
+                const item = document.createElement('div');
+
+                const isCurrentUser = (top3[i] === score && score > 0);
+                item.className = `leaderboard-item ${isCurrentUser ? 'is-current' : ''}`;
+
+                item.innerHTML = `
+                    <div>
+                        <span class="rank-medal">${medals[i]}</span>
+                        <span>第${i + 1}位</span>
+                    </div>
+                    <div>${scoreVal}</div>
+                `;
+                top3Container.appendChild(item);
+            }
+
+            document.getElementById('gameOverModal').style.display = 'flex';
+        }
+
+        function openAvgModal() {
+            let rankings150 = [];
+            let rankings500 = [];
+            try {
+                const s150 = localStorage.getItem(RANKING_KEY_150);
+                if (s150) rankings150 = JSON.parse(s150);
+                const s500 = localStorage.getItem(RANKING_KEY_500);
+                if (s500) rankings500 = JSON.parse(s500);
+            } catch (e) {}
+
+            let text150 = "データなし";
+            if (rankings150.length > 0) {
+                const sum150 = rankings150.reduce((a, b) => a + b, 0);
+                const avg150 = Math.round(sum150 / rankings150.length);
+                text150 = `平均スコア: ${avg150.toLocaleString()} pt`;
+            }
+
+            let text500 = "データなし";
+            if (rankings500.length > 0) {
+                const sum500 = rankings500.reduce((a, b) => a + b, 0);
+                const avg500 = Math.round(sum500 / rankings500.length);
+                text500 = `平均スコア: ${avg500.toLocaleString()} pt`;
+            }
+
+            const avgTextEl = document.getElementById('avgScoreText');
+            avgTextEl.innerText = `【 ×150 モード 】\n${text150}\n\n【 ×500 モード 】\n${text500}`;
+
+            document.getElementById('avgModal').style.display = 'flex';
+        }
+
+        function playWinAnimation(isBigWin) {
+            const overlay = document.getElementById('winBannerOverlay');
+            const bannerText = document.getElementById('winBannerText');
+
+            bannerText.className = 'win-banner-text';
+
+            if (isBigWin) {
+                bannerText.innerText = '777 大当たり！！！';
+                bannerText.classList.add('gold-jackpot');
+            } else {
+                bannerText.innerText = '当たり！！！';
+                bannerText.classList.add('standard-win');
+            }
+
+            overlay.classList.add('active');
+            fireEnlargedConfetti(isBigWin);
+
+            setTimeout(() => {
+                overlay.classList.remove('active');
+            }, 2600);
+        }
+
+        let animationFrameId = null;
+
+        function fireEnlargedConfetti(isBigWin) {
+            const canvas = document.getElementById('confettiCanvas');
+            const ctx = canvas.getContext('2d');
+
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particleCount = isBigWin ? 480 : 240;
+            const particles = [];
+
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * -canvas.height * 0.5,
+                    w: Math.random() * 18 + 22,
+                    h: Math.random() * 10 + 16,
+                    hue: Math.random() * 360,
+                    vy: Math.random() * 5 + 3,
+                    vx: (Math.random() - 0.5) * 5,
+                    rot: Math.random() * 360,
+                    vRot: (Math.random() - 0.5) * 8,
+                    opacity: 1
+                });
+            }
+
+            let start = null;
+            const duration = 3500;
+
+            function render(timestamp) {
+                if (!start) start = timestamp;
+                const elapsed = timestamp - start;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.rot += p.vRot;
+
+                    if (elapsed > duration - 1000) {
+                        p.opacity = Math.max(0, (duration - elapsed) / 1000);
+                    }
+
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate((p.rot * Math.PI) / 180);
+                    ctx.fillStyle = `hsla(${p.hue}, 90%, 60%, ${p.opacity})`;
+                    ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                    ctx.restore();
+                });
+
+                if (elapsed < duration) {
+                    animationFrameId = requestAnimationFrame(render);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+
+            animationFrameId = requestAnimationFrame(render);
+        }
+
+        function isModalOpen() {
+            const modeModal = document.getElementById('modeModal');
+            const avgModal = document.getElementById('avgModal');
+            const helpModal = document.getElementById('helpModal');
+            const gameOverModal = document.getElementById('gameOverModal');
+
+            return (
+                (modeModal && modeModal.style.display !== 'none') ||
+                (avgModal && avgModal.style.display !== 'none') ||
+                (helpModal && helpModal.style.display !== 'none') ||
+                (gameOverModal && gameOverModal.style.display !== 'none')
+            );
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'q') {
+                const avgModal = document.getElementById('avgModal');
+                const helpModal = document.getElementById('helpModal');
+                const gameOverModal = document.getElementById('gameOverModal');
+                const modeModal = document.getElementById('modeModal');
+
+                if (modeModal && modeModal.style.display !== 'none') return;
+                if (gameOverModal && gameOverModal.style.display !== 'none') return;
+                if (helpModal && helpModal.style.display !== 'none') return;
+
+                if (avgModal.style.display === 'none' || avgModal.style.display === '') {
+                    openAvgModal();
+                } else {
+                    avgModal.style.display = 'none';
+                }
+                return;
+            }
+
+            if (e.key === 'Enter') {
+                if (isModalOpen()) {
+                    e.preventDefault();
+                    return;
+                }
+
+                if (!isSpinning[0] && !isSpinning[1] && !isSpinning[2]) {
+                    startSpin();
+                } else {
+                    for (let i = 0; i < 3; i++) {
+                        if (isSpinning[i] && !stopRequested[i]) {
+                            requestStop(i);
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+
+        document.getElementById('mode150Btn').addEventListener('click', () => {
+            selectMode(150);
+        });
+
+        document.getElementById('mode500Btn').addEventListener('click', () => {
+            selectMode(500);
+        });
+
+        const originalSaveAndGetRankings = saveAndGetRankings;
+        function saveAndGetRankings(finalScore) {
+            const modeKey = (mode === 150) ? RANKING_KEY_150 : RANKING_KEY_500;
+            try {
+                let mRankings = [];
+                const storedM = localStorage.getItem(modeKey);
+                if (storedM) mRankings = JSON.parse(storedM);
+                mRankings.push(finalScore);
+                mRankings.sort((a, b) => b - a);
+                localStorage.setItem(modeKey, JSON.stringify(mRankings));
+            } catch (e) {}
+
+            let rankings = [];
+            try {
+                const stored = localStorage.getItem(GLOBAL_RANKING_KEY);
+                if (stored) rankings = JSON.parse(stored);
+            } catch (e) {
+                rankings = [];
+            }
+
+            rankings.push(finalScore);
+            rankings.sort((a, b) => b - a);
+
+            if (rankings.length > 1000) {
+                rankings = rankings.slice(0, 1000);
+            }
+
+            try {
+                localStorage.setItem(GLOBAL_RANKING_KEY, JSON.stringify(rankings));
+            } catch (e) {}
+
+            let rank = rankings.indexOf(finalScore) + 1;
+            if (rank === 0 || rank > 1000) rank = 1000;
+
+            return { playerRank: rank, top3: rankings.slice(0, 3) };
+        }
+
+        document.getElementById('startBtn').addEventListener('click', startSpin);
+
+        document.getElementById('stopBtn0').addEventListener('click', () => requestStop(0));
+        document.getElementById('stopBtn1').addEventListener('click', () => requestStop(1));
+        document.getElementById('stopBtn2').addEventListener('click', () => requestStop(2));
+
+        document.getElementById('quitBtn').addEventListener('click', quitGame);
+
+        document.getElementById('helpBtn').addEventListener('click', () => {
+            document.getElementById('helpModal').style.display = 'flex';
+        });
+
+        document.getElementById('modeHelpBtn').addEventListener('click', () => {
+            document.getElementById('helpModal').style.display = 'flex';
+        });
+
+        document.getElementById('closeHelpBtn').addEventListener('click', () => {
+            document.getElementById('helpModal').style.display = 'none';
+        });
+
+        document.getElementById('closeAvgBtn').addEventListener('click', () => {
+            document.getElementById('avgModal').style.display = 'none';
+        });
+
+        document.getElementById('finishBtn').addEventListener('click', () => {
+            document.getElementById('gameOverModal').style.display = 'none';
+            quitGame();
+        });
+
+        setUniqueStartingReels();
+    </script>
+</body>
+</html>
