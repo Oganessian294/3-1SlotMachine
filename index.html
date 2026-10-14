@@ -527,7 +527,7 @@
     <div class="modal-overlay" id="avgModal" style="display: none;">
         <div class="modal">
             <button type="button" class="close-btn-left" id="closeAvgBtn" aria-label="閉じる">×</button>
-            <h2>平均スコア</h2>
+            <h2>平均スコア一覧</h2>
             <div class="help-text" id="avgScoreText">保存されたスコアはありません。</div>
         </div>
     </div>
@@ -809,7 +809,7 @@
                 setTimeout(() => {
                     if (!isSpinning[index]) return;
                     reelValues[index] = stepInfo.val;
-                    reelEl.innerText = reelValues[index];
+                    reelEl.innerText = stepInfo.val;
 
                     if (stepInfo.val === target) {
                         stopReel(index);
@@ -869,6 +869,16 @@
         }
 
         function saveAndGetRankings(finalScore) {
+            const modeKey = (mode === 150) ? RANKING_KEY_150 : RANKING_KEY_500;
+            try {
+                let mRankings = [];
+                const storedM = localStorage.getItem(modeKey);
+                if (storedM) mRankings = JSON.parse(storedM);
+                mRankings.push(finalScore);
+                mRankings.sort((a, b) => b - a);
+                localStorage.setItem(modeKey, JSON.stringify(mRankings));
+            } catch (e) {}
+
             let rankings = [];
             try {
                 const stored = localStorage.getItem(GLOBAL_RANKING_KEY);
@@ -926,29 +936,39 @@
         function openAvgModal() {
             let rankings150 = [];
             let rankings500 = [];
+            let globalRankings = [];
             try {
                 const s150 = localStorage.getItem(RANKING_KEY_150);
                 if (s150) rankings150 = JSON.parse(s150);
                 const s500 = localStorage.getItem(RANKING_KEY_500);
                 if (s500) rankings500 = JSON.parse(s500);
+                const storedGlobal = localStorage.getItem(GLOBAL_RANKING_KEY);
+                if (storedGlobal) globalRankings = JSON.parse(storedGlobal);
             } catch (e) {}
 
             let text150 = "データなし";
             if (rankings150.length > 0) {
                 const sum150 = rankings150.reduce((a, b) => a + b, 0);
                 const avg150 = Math.round(sum150 / rankings150.length);
-                text150 = `平均スコア: ${avg150.toLocaleString()} pt`;
+                text150 = `平均スコア: ${avg150.toLocaleString()} pt (${rankings150.length}回)`;
             }
 
             let text500 = "データなし";
             if (rankings500.length > 0) {
                 const sum500 = rankings500.reduce((a, b) => a + b, 0);
                 const avg500 = Math.round(sum500 / rankings500.length);
-                text500 = `平均スコア: ${avg500.toLocaleString()} pt`;
+                text500 = `平均スコア: ${avg500.toLocaleString()} pt (${rankings500.length}回)`;
+            }
+
+            let textGlobal = "データなし";
+            if (globalRankings.length > 0) {
+                const sumGlobal = globalRankings.reduce((a, b) => a + b, 0);
+                const avgGlobal = Math.round(sumGlobal / globalRankings.length);
+                textGlobal = `平均スコア: ${avgGlobal.toLocaleString()} pt (${globalRankings.length}回)`;
             }
 
             const avgTextEl = document.getElementById('avgScoreText');
-            avgTextEl.innerText = `【 ×150 モード 】\n${text150}\n\n【 ×500 モード 】\n${text500}`;
+            avgTextEl.innerText = `【 ×150 モード 】\n${text150}\n\n【 ×500 モード 】\n${text500}\n\n【 全体平均 】\n${textGlobal}`;
 
             document.getElementById('avgModal').style.display = 'flex';
         }
@@ -1101,43 +1121,6 @@
         document.getElementById('mode500Btn').addEventListener('click', () => {
             selectMode(500);
         });
-
-        const originalSaveAndGetRankings = saveAndGetRankings;
-        function saveAndGetRankings(finalScore) {
-            const modeKey = (mode === 150) ? RANKING_KEY_150 : RANKING_KEY_500;
-            try {
-                let mRankings = [];
-                const storedM = localStorage.getItem(modeKey);
-                if (storedM) mRankings = JSON.parse(storedM);
-                mRankings.push(finalScore);
-                mRankings.sort((a, b) => b - a);
-                localStorage.setItem(modeKey, JSON.stringify(mRankings));
-            } catch (e) {}
-
-            let rankings = [];
-            try {
-                const stored = localStorage.getItem(GLOBAL_RANKING_KEY);
-                if (stored) rankings = JSON.parse(stored);
-            } catch (e) {
-                rankings = [];
-            }
-
-            rankings.push(finalScore);
-            rankings.sort((a, b) => b - a);
-
-            if (rankings.length > 1000) {
-                rankings = rankings.slice(0, 1000);
-            }
-
-            try {
-                localStorage.setItem(GLOBAL_RANKING_KEY, JSON.stringify(rankings));
-            } catch (e) {}
-
-            let rank = rankings.indexOf(finalScore) + 1;
-            if (rank === 0 || rank > 1000) rank = 1000;
-
-            return { playerRank: rank, top3: rankings.slice(0, 3) };
-        }
 
         document.getElementById('startBtn').addEventListener('click', startSpin);
 
