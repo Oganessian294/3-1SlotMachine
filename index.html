@@ -4,6 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3x1 Slot Machine</title>
+    <!-- Firebase SDK (v10) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDH2xyeqxisArffpxdNNjWi6PkNk0AGMBI",
+            authDomain: "slot-machine-db09b.firebaseapp.com",
+            projectId: "slot-machine-db09b",
+            storageBucket: "slot-machine-db09b.firebasestorage.app",
+            messagingSenderId: "587449768334",
+            appId: "1:587449768334:web:b403711bd81840e0adacdf",
+            measurementId: "G-YMKGF9KL56"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.FB_db = db;
+        window.FB_collection = collection;
+        window.FB_addDoc = addDoc;
+        window.FB_getDocs = getDocs;
+        window.FB_query = query;
+        window.FB_orderBy = orderBy;
+        window.FB_limit = limit;
+        window.FB_serverTimestamp = serverTimestamp;
+        window.dispatchEvent(new Event('firebase-ready'));
+    </script>
+
     <style>
         * {
             box-sizing: border-box;
@@ -125,6 +154,8 @@
             border-radius: 16px;
             border: 1px solid #111111;
             word-break: break-word;
+            max-height: 320px;
+            overflow-y: auto;
         }
 
         .final-score-container {
@@ -527,8 +558,8 @@
     <div class="modal-overlay" id="avgModal" style="display: none;">
         <div class="modal">
             <button type="button" class="close-btn-left" id="closeAvgBtn" aria-label="閉じる">×</button>
-            <h2>平均スコア一覧</h2>
-            <div class="help-text" id="avgScoreText">保存されたスコアはありません。</div>
+            <h2>サーバー平均スコア一覧</h2>
+            <div class="help-text" id="avgScoreText">サーバーからデータを読み込み中...</div>
         </div>
     </div>
 
@@ -557,13 +588,13 @@
                     <div class="final-score-value" id="finalScoreVal">0</div>
                 </div>
                 <div class="final-rank-box">
-                    <div class="final-score-label">ランキング</div>
-                    <div class="final-rank-value" id="finalRankVal">第1位</div>
+                    <div class="final-score-label">サーバー順位</div>
+                    <div class="final-rank-value" id="finalRankVal">算出中...</div>
                 </div>
             </div>
 
             <div class="leaderboard-box">
-                <div class="leaderboard-title">🏆 歴代TOP 3 スコア</div>
+                <div class="leaderboard-title">🏆 サーバー歴代TOP 3 スコア</div>
                 <div class="leaderboard-list" id="top3List"></div>
             </div>
 
@@ -624,10 +655,6 @@
         let spinTimeouts = [null, null, null];
         let stopRequested = [false, false, false];
         let stoppedCount = 0;
-
-        const RANKING_KEY_150 = "slot_machine_scores_mode_150";
-        const RANKING_KEY_500 = "slot_machine_scores_mode_500";
-        const GLOBAL_RANKING_KEY = "slot_machine_leaderboard_global_unified";
 
         function getUniqueTriple() {
             const arr = [1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -868,45 +895,39 @@
             }
         }
 
-        function saveAndGetRankings(finalScore) {
-            const modeKey = (mode === 150) ? RANKING_KEY_150 : RANKING_KEY_500;
+        async function saveScoreToFirebase(finalScore, currentMode) {
+            if (!window.FB_db) return { playerRank: 1, top3: [] };
             try {
-                let mRankings = [];
-                const storedM = localStorage.getItem(modeKey);
-                if (storedM) mRankings = JSON.parse(storedM);
-                mRankings.push(finalScore);
-                mRankings.sort((a, b) => b - a);
-                localStorage.setItem(modeKey, JSON.stringify(mRankings));
-            } catch (e) {}
+                await window.FB_addDoc(window.FB_collection(window.FB_db, "slot_scores"), {
+                    score: finalScore,
+                    mode: currentMode,
+                    createdAt: window.FB_serverTimestamp()
+                });
 
-            let rankings = [];
-            try {
-                const stored = localStorage.getItem(GLOBAL_RANKING_KEY);
-                if (stored) rankings = JSON.parse(stored);
+                const q = window.FB_query(window.FB_collection(window.FB_db, "slot_scores"), window.FB_orderBy("score", "desc"));
+                const querySnapshot = await window.FB_getDocs(q);
+                let allScores = [];
+                querySnapshot.forEach((doc) => {
+                    allScores.push(doc.data().score);
+                });
+
+                let rank = allScores.indexOf(finalScore) + 1;
+                if (rank === 0) rank = allScores.length;
+
+                return { playerRank: rank, top3: allScores.slice(0, 3) };
             } catch (e) {
-                rankings = [];
+                console.error("Firebase save error:", e);
+                return { playerRank: 1, top3: [finalScore] };
             }
-
-            rankings.push(finalScore);
-            rankings.sort((a, b) => b - a);
-
-            if (rankings.length > 1000) {
-                rankings = rankings.slice(0, 1000);
-            }
-
-            try {
-                localStorage.setItem(GLOBAL_RANKING_KEY, JSON.stringify(rankings));
-            } catch (e) {}
-
-            let rank = rankings.indexOf(finalScore) + 1;
-            if (rank === 0 || rank > 1000) rank = 1000;
-
-            return { playerRank: rank, top3: rankings.slice(0, 3) };
         }
 
-        function showGameOver() {
-            const { playerRank, top3 } = saveAndGetRankings(score);
+        async function showGameOver() {
             document.getElementById('finalScoreVal').innerText = score.toLocaleString();
+            document.getElementById('finalRankVal').innerText = "算出中...";
+            document.getElementById('gameOverModal').style.display = 'flex';
+
+            const { playerRank, top3 } = await saveScoreToFirebase(score, mode);
+
             document.getElementById('finalRankVal').innerText = `第${playerRank}位`;
 
             const medals = ['🥇', '🥈', '🥉'];
@@ -916,7 +937,6 @@
             for (let i = 0; i < 3; i++) {
                 const scoreVal = top3[i] !== undefined ? `${top3[i].toLocaleString()} pt` : '---';
                 const item = document.createElement('div');
-
                 const isCurrentUser = (top3[i] === score && score > 0);
                 item.className = `leaderboard-item ${isCurrentUser ? 'is-current' : ''}`;
 
@@ -929,48 +949,57 @@
                 `;
                 top3Container.appendChild(item);
             }
-
-            document.getElementById('gameOverModal').style.display = 'flex';
         }
 
-        function openAvgModal() {
-            let rankings150 = [];
-            let rankings500 = [];
-            let globalRankings = [];
-            try {
-                const s150 = localStorage.getItem(RANKING_KEY_150);
-                if (s150) rankings150 = JSON.parse(s150);
-                const s500 = localStorage.getItem(RANKING_KEY_500);
-                if (s500) rankings500 = JSON.parse(s500);
-                const storedGlobal = localStorage.getItem(GLOBAL_RANKING_KEY);
-                if (storedGlobal) globalRankings = JSON.parse(storedGlobal);
-            } catch (e) {}
-
-            let text150 = "データなし";
-            if (rankings150.length > 0) {
-                const sum150 = rankings150.reduce((a, b) => a + b, 0);
-                const avg150 = Math.round(sum150 / rankings150.length);
-                text150 = `平均スコア: ${avg150.toLocaleString()} pt (${rankings150.length}回)`;
-            }
-
-            let text500 = "データなし";
-            if (rankings500.length > 0) {
-                const sum500 = rankings500.reduce((a, b) => a + b, 0);
-                const avg500 = Math.round(sum500 / rankings500.length);
-                text500 = `平均スコア: ${avg500.toLocaleString()} pt (${rankings500.length}回)`;
-            }
-
-            let textGlobal = "データなし";
-            if (globalRankings.length > 0) {
-                const sumGlobal = globalRankings.reduce((a, b) => a + b, 0);
-                const avgGlobal = Math.round(sumGlobal / globalRankings.length);
-                textGlobal = `平均スコア: ${avgGlobal.toLocaleString()} pt (${globalRankings.length}回)`;
-            }
-
+        async function openAvgModal() {
             const avgTextEl = document.getElementById('avgScoreText');
-            avgTextEl.innerText = `【 ×150 モード 】\n${text150}\n\n【 ×500 モード 】\n${text500}\n\n【 全体平均 】\n${textGlobal}`;
-
+            avgTextEl.innerText = "サーバーからデータを読み込み中...";
             document.getElementById('avgModal').style.display = 'flex';
+
+            if (!window.FB_db) {
+                avgTextEl.innerText = "Firebaseが初期化されていません。";
+                return;
+            }
+
+            try {
+                const querySnapshot = await window.FB_getDocs(window.FB_collection(window.FB_db, "slot_scores"));
+                let scores150 = [];
+                let scores500 = [];
+                let allScores = [];
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const s = data.score;
+                    allScores.push(s);
+                    if (data.mode === 500) {
+                        scores500.push(s);
+                    } else {
+                        scores150.push(s);
+                    }
+                });
+
+                let text150 = "データなし";
+                if (scores150.length > 0) {
+                    const avg150 = Math.round(scores150.reduce((a, b) => a + b, 0) / scores150.length);
+                    text150 = `平均スコア: ${avg150.toLocaleString()} pt (${scores150.length}回)`;
+                }
+
+                let text500 = "データなし";
+                if (scores500.length > 0) {
+                    const avg500 = Math.round(scores500.reduce((a, b) => a + b, 0) / scores500.length);
+                    text500 = `平均スコア: ${avg500.toLocaleString()} pt (${scores500.length}回)`;
+                }
+
+                let textGlobal = "データなし";
+                if (allScores.length > 0) {
+                    const avgGlobal = Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length);
+                    textGlobal = `平均スコア: ${avgGlobal.toLocaleString()} pt (${allScores.length}回)`;
+                }
+
+                avgTextEl.innerText = `【 ×150 モード 】\n${text150}\n\n【 ×500 モード 】\n${text500}\n\n【 全体平均 】\n${textGlobal}`;
+            } catch (e) {
+                avgTextEl.innerText = "サーバーからのデータ取得に失敗しました。";
+            }
         }
 
         function playWinAnimation(isBigWin) {
